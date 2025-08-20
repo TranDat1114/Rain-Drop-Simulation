@@ -1,26 +1,214 @@
-<!DOCTYPE html>
-<html lang="en">
 <!doctype html>
 <html lang="vi">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Isometric Rain & Ripples</title>
-        <style>
-            html,body{height:100%;margin:0;background:#0b1220;color:#dfeeff;font-family:system-ui,Segoe UI,Roboto,Arial}
-            canvas{display:block;width:100%;height:100%}
-            #overlay{position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.35);backdrop-filter:blur(4px);padding:8px 10px;border-radius:8px;font-size:13px}
-            a{color:#9fd3ff}
-        </style>
-    </head>
-    <body>
-        <canvas id="c"></canvas>
-        <div id="overlay">
-            <div>Click/tap to spawn heavy rain. Press Space to toggle rain.</div>
-            <div style="margin-top:6px">Drops/sec: <span id="rate">120</span> · Ripples: <span id="count">0</span></div>
-        </div>
 
-        <script>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Isometric Rain & Ripples</title>
+    <style>
+        :root {
+            --bg: #071426;
+            --panel-bg: rgba(6, 12, 20, 0.55);
+            --accent: #66c0ff;
+            --muted: rgba(255, 255, 255, 0.18);
+            --btn-bg: rgba(255, 255, 255, 0.04);
+            --btn-border: rgba(255, 255, 255, 0.06);
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: #dfeeff;
+            font-family: system-ui, Segoe UI, Roboto, Arial
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%
+        }
+
+        #overlay {
+            position: fixed;
+            left: 12px;
+            top: 12px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(6px);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+            min-width: 220px
+        }
+
+        a {
+            color: var(--accent)
+        }
+
+        /* Controls container animation */
+        #controls {
+            max-height: 720px;
+            overflow: hidden;
+            transition: max-height 300ms cubic-bezier(.2, .9, .2, 1), opacity 220ms ease;
+            opacity: 1
+        }
+
+        #controls.collapsed {
+            max-height: 0;
+            opacity: 0;
+            pointer-events: none
+        }
+
+        /* Buttons */
+        button {
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
+            color: inherit;
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer
+        }
+
+        button:hover {
+            filter: brightness(1.08)
+        }
+
+        .step-btn {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        #toggleOverlay {
+            min-width: 36px
+        }
+
+        #resetBtn,
+        #clearBtn {
+            padding: 6px 10px
+        }
+
+        /* Range and number inputs */
+        input[type=range] {
+            accent-color: var(--accent);
+            height: 28px
+        }
+
+        input[type=text] {
+            background: transparent;
+            border: 1px solid var(--btn-border);
+            color: inherit;
+            padding: 6px;
+            border-radius: 6px
+        }
+
+        /* Checkbox styling (uses accent-color where supported) */
+        input[type=checkbox] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent)
+        }
+
+        /* Small responsive tweaks */
+        @media (max-width:520px) {
+            #overlay {
+                left: 8px;
+                top: 8px;
+                right: 8px;
+                min-width: unset
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="c"></canvas>
+    <div id="overlay">
+        <!-- <div>Click/tap to spawn heavy rain. Press Space to toggle rain.</div> -->
+        <div style="margin-top:6px">Drops/sec: <span id="rate">120</span> · Ripples: <span id="count">0</span></div>
+        <hr style="opacity:0.12;margin:8px 0" />
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <strong>Config</strong>
+                <button id="toggleOverlay" title="Collapse" style="font-size:12px;padding:4px 6px">-</button>
+            </div>
+            <div id="controls" style="display:flex;flex-direction:column;gap:8px">
+                <label style="display:flex;align-items:center;gap:8px">Auto rain: <input id="autoRain" type="checkbox"
+                        style="margin-left:auto" /></label>
+
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="flex:1">Drops / sec:</label>
+                    <button class="step-btn" data-target="drops" data-delta="-1">-</button>
+                    <input id="dropsRange" type="range" min="0" max="300" step="1" value="15" style="flex:2" />
+                    <button class="step-btn" data-target="drops" data-delta="1">+</button>
+                    <input id="dropsNumber" type="text" min="0" max="300" value="15" style="width:64px" />
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="flex:1">Drop size:</label>
+                    <button class="step-btn" data-target="dropSize" data-delta="-0.1">-</button>
+                    <input id="dropSize" type="range" min="0.3" max="3" step="0.1" value="1" style="flex:2" />
+                    <button class="step-btn" data-target="dropSize" data-delta="0.1">+</button>
+                    <input id="dropSizeNumber" type="text" min="0.1" max="5" step="0.1" value="1"
+                        style="width:64px" />
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="flex:1">Ripple size:</label>
+                    <button class="step-btn" data-target="rippleSize" data-delta="-0.05">-</button>
+                    <input id="rippleSize" type="range" min="0.2" max="3" step="0.05" value="1" style="flex:2" />
+                    <button class="step-btn" data-target="rippleSize" data-delta="0.05">+</button>
+                    <input id="rippleSizeNumber" type="text" min="0.1" max="5" step="0.05" value="1"
+                        style="width:64px" />
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="flex:1">Ripple life:</label>
+                    <button class="step-btn" data-target="rippleLife" data-delta="-0.05">-</button>
+                    <input id="rippleLife" type="range" min="0.2" max="3" step="0.05" value="1" style="flex:2" />
+                    <button class="step-btn" data-target="rippleLife" data-delta="0.05">+</button>
+                    <input id="rippleLifeNumber" type="text" min="0.1" max="5" step="0.05" value="1"
+                        style="width:64px" />
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="flex:1">Splash strength:</label>
+                    <button class="step-btn" data-target="splashCount" data-delta="-1">-</button>
+                    <input id="splashCount" type="range" min="0" max="50" step="1" value="10" style="flex:2" />
+                    <button class="step-btn" data-target="splashCount" data-delta="1">+</button>
+                    <input id="splashCountNumber" type="text" min="0" max="50" step="1" value="10"
+                        style="width:64px" />
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="flex:1">Click spawn:</label>
+                    <button class="step-btn" data-target="clickSpawnCount" data-delta="-1">-</button>
+                    <input id="clickSpawnRange" type="range" min="1" max="100" step="1" value="5" style="flex:2" />
+                    <button class="step-btn" data-target="clickSpawnCount" data-delta="1">+</button>
+                    <input id="clickSpawnNumber" type="text" min="1" max="100" step="1" value="5"
+                        style="width:64px" />
+                </div>
+
+                <label style="display:flex;align-items:center;gap:8px"><input id="hoverSpawn" type="checkbox" /> Spawn
+                    on hover</label>
+                <label style="display:flex;align-items:center;gap:8px"><input id="gridToggle" type="checkbox" checked />
+                    Show grid</label>
+
+                <div style="display:flex;gap:8px;justify-content:space-between">
+                    <button id="resetBtn">Reset</button>
+                    <button id="clearBtn">Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
         // Isometric rain + ripple simulation on HTML Canvas
         // - Projection: isometric with 30° angle (cos=0.866, sin=0.5)
         // - Plain JS, no external libs
@@ -31,17 +219,17 @@
         const overlayCount = document.getElementById('count');
 
         let DPR = Math.max(1, window.devicePixelRatio || 1);
-        function resize(){
+        function resize() {
             DPR = Math.max(1, window.devicePixelRatio || 1);
             canvas.width = Math.floor(canvas.clientWidth * DPR);
             canvas.height = Math.floor(canvas.clientHeight * DPR);
-            ctx.setTransform(DPR,0,0,DPR,0,0);
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
         }
         window.addEventListener('resize', resize);
         resize();
 
         // Isometric projection constants
-        const ISO_ANGLE = Math.PI/6; // 30deg
+        const ISO_ANGLE = Math.PI / 6; // 30deg
         const COS = Math.cos(ISO_ANGLE); // ~0.866
         const SIN = Math.sin(ISO_ANGLE); // ~0.5
 
@@ -50,214 +238,339 @@
         const CENTER_X = 0;
         const CENTER_Y = 0;
 
-        function project(pos){
+        function project(pos) {
             // pos: {x,y,z} in world units. Return screen {x,y}
             const sx = (pos.x - pos.y) * COS;
             const sy = (pos.x + pos.y) * SIN - pos.z;
             // translate to canvas center
-            return { x: sx + canvas.clientWidth/2, y: sy + canvas.clientHeight*0.45 };
+            return { x: sx + canvas.clientWidth / 2, y: sy + canvas.clientHeight * 0.45 };
         }
+
+        // Config (exposed to UI)
+        const config = {
+            dropsPerSec: 15,
+            dropSize: 1,
+            rippleSize: 1,
+            rippleLife: 1,
+            splashCount: 10,
+            clickSpawnCount: 5,
+            autoRain: true,
+            showGrid: true,
+            hoverSpawn: false
+        };
+
+        // wire UI elements
+        const dropsRange = document.getElementById('dropsRange');
+        const dropsNumber = document.getElementById('dropsNumber');
+        const dropSizeEl = document.getElementById('dropSize');
+        const dropSizeNumber = document.getElementById('dropSizeNumber');
+        const rippleSizeEl = document.getElementById('rippleSize');
+        const rippleSizeNumber = document.getElementById('rippleSizeNumber');
+        const rippleLifeEl = document.getElementById('rippleLife');
+        const rippleLifeNumber = document.getElementById('rippleLifeNumber');
+        const splashCountEl = document.getElementById('splashCount');
+        const splashCountNumber = document.getElementById('splashCountNumber');
+        const clickSpawnRange = document.getElementById('clickSpawnRange');
+        const clickSpawnNumber = document.getElementById('clickSpawnNumber');
+        const autoRainEl = document.getElementById('autoRain');
+        const gridToggleEl = document.getElementById('gridToggle');
+        const hoverSpawnEl = document.getElementById('hoverSpawn');
+        const resetBtn = document.getElementById('resetBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const toggleOverlay = document.getElementById('toggleOverlay');
+        const controlsWrap = document.getElementById('controls');
+
+        function syncFromConfig() {
+            dropsRange.value = config.dropsPerSec; dropsNumber.value = config.dropsPerSec; overlayRate.textContent = config.dropsPerSec;
+            dropSizeEl.value = config.dropSize; dropSizeNumber.value = config.dropSize;
+            rippleSizeEl.value = config.rippleSize; rippleSizeNumber.value = config.rippleSize;
+            rippleLifeEl.value = config.rippleLife; rippleLifeNumber.value = config.rippleLife;
+            splashCountEl.value = config.splashCount; splashCountNumber.value = config.splashCount;
+            clickSpawnRange.value = config.clickSpawnCount; clickSpawnNumber.value = config.clickSpawnCount;
+            autoRainEl.checked = config.autoRain; gridToggleEl.checked = config.showGrid; hoverSpawnEl.checked = !!config.hoverSpawn;
+        }
+
+        // range/number two-way bindings
+        dropsRange.addEventListener('input', () => { config.dropsPerSec = Number(dropsRange.value); dropsNumber.value = config.dropsPerSec; overlayRate.textContent = config.dropsPerSec; });
+        dropsNumber.addEventListener('change', () => { config.dropsPerSec = Math.max(0, Number(dropsNumber.value)); dropsRange.value = config.dropsPerSec; overlayRate.textContent = config.dropsPerSec; });
+
+        dropSizeEl.addEventListener('input', () => { config.dropSize = Number(dropSizeEl.value); dropSizeNumber.value = config.dropSize; });
+        dropSizeNumber.addEventListener('change', () => { config.dropSize = Number(dropSizeNumber.value); dropSizeEl.value = config.dropSize; });
+
+        rippleSizeEl.addEventListener('input', () => { config.rippleSize = Number(rippleSizeEl.value); rippleSizeNumber.value = config.rippleSize; });
+        rippleSizeNumber.addEventListener('change', () => { config.rippleSize = Number(rippleSizeNumber.value); rippleSizeEl.value = config.rippleSize; });
+
+        rippleLifeEl.addEventListener('input', () => { config.rippleLife = Number(rippleLifeEl.value); rippleLifeNumber.value = config.rippleLife; });
+        rippleLifeNumber.addEventListener('change', () => { config.rippleLife = Number(rippleLifeNumber.value); rippleLifeEl.value = config.rippleLife; });
+
+        splashCountEl.addEventListener('input', () => { config.splashCount = Number(splashCountEl.value); splashCountNumber.value = config.splashCount; });
+        splashCountNumber.addEventListener('change', () => { config.splashCount = Number(splashCountNumber.value); splashCountEl.value = config.splashCount; });
+        clickSpawnRange.addEventListener('input', () => { config.clickSpawnCount = Math.max(1, Number(clickSpawnRange.value)); clickSpawnNumber.value = config.clickSpawnCount; });
+        clickSpawnNumber.addEventListener('change', () => { config.clickSpawnCount = Math.max(1, Number(clickSpawnNumber.value)); clickSpawnRange.value = config.clickSpawnCount; });
+
+        autoRainEl.addEventListener('change', () => { config.autoRain = autoRainEl.checked; rainOn = config.autoRain; });
+        gridToggleEl.addEventListener('change', () => { config.showGrid = gridToggleEl.checked; });
+        hoverSpawnEl.addEventListener('change', () => { config.hoverSpawn = hoverSpawnEl.checked; });
+
+        // step buttons (+/-)
+        document.querySelectorAll('.step-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.target;
+                const delta = Number(btn.dataset.delta);
+                if (target === 'drops') {
+                    config.dropsPerSec = Math.max(0, Math.round((config.dropsPerSec + delta)));
+                    syncFromConfig();
+                } else {
+                    config[target] = Math.max(0, +(config[target] + delta).toFixed(2));
+                    syncFromConfig();
+                }
+            });
+        });
+
+        resetBtn.addEventListener('click', () => { // reset to defaults
+            config.dropsPerSec = 120; config.dropSize = 1; config.rippleSize = 1; config.rippleLife = 1; config.splashCount = 6; config.showGrid = true; config.autoRain = true; config.hoverSpawn = false;
+            rainOn = config.autoRain; syncFromConfig();
+        });
+        clearBtn.addEventListener('click', () => { drops.length = 0; ripples.length = 0; splashes.length = 0; });
+
+        // overlay collapse
+        toggleOverlay.addEventListener('click', () => {
+            const collapsed = controlsWrap.classList.toggle('collapsed');
+            toggleOverlay.textContent = collapsed ? '+' : '-';
+        });
+
+        // initialize UI state
+        syncFromConfig();
 
         // Entities
         class Drop {
-            constructor(){
-                this.x = (Math.random()*2-1) * PLANE_SIZE/2;
-                this.y = (Math.random()*2-1) * PLANE_SIZE/2;
-                this.z = 300 + Math.random()*200; // start height
-                this.vz = 600 + Math.random()*300; // falling speed units/sec
+            constructor() {
+                this.x = (Math.random() * 2 - 1) * PLANE_SIZE / 2;
+                this.y = (Math.random() * 2 - 1) * PLANE_SIZE / 2;
+                this.z = 300 + Math.random() * 200; // start height
+                this.vz = 600 + Math.random() * 300; // falling speed units/sec
                 this.alive = true;
             }
-            update(dt){
+            update(dt) {
                 this.z -= this.vz * dt;
-                if(this.z <= 0){
+                if (this.z <= 0) {
                     this.alive = false;
                     spawnRipple(this.x, this.y);
                     spawnSplash(this.x, this.y);
                 }
             }
-            draw(ctx){
+            draw(ctx) {
                 const p = project(this);
-                const alpha = Math.min(1, Math.max(0, this.z/400));
-                ctx.fillStyle = `rgba(180,220,255,${0.9*alpha})`;
+                const alpha = Math.min(1, Math.max(0, this.z / 400));
+                ctx.fillStyle = `rgba(180,220,255,${0.9 * alpha})`;
+                const sizeMul = config.dropSize;
                 ctx.beginPath();
-                ctx.ellipse(p.x, p.y, 1.5 + (this.z/200), 3 + (this.z/150), 0, 0, Math.PI*2);
+                ctx.ellipse(p.x, p.y, (1.5 + (this.z / 200)) * sizeMul, (3 + (this.z / 150)) * sizeMul, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
 
         class Ripple {
-            constructor(x,y){
-                this.x = x; this.y = y; this.age = 0; this.life = 1.8 + Math.random()*0.8; // seconds
-                this.speed = 220 + Math.random()*80; // world units/sec
+            constructor(x, y) {
+                this.x = x; this.y = y; this.age = 0;
+                // base life/speed scaled by config
+                this.life = (1.8 + Math.random() * 0.8) * config.rippleLife; // seconds
+                this.speed = (220 + Math.random() * 80) * config.rippleSize; // world units/sec
                 this.maxR = this.speed * this.life;
-                this.rings = 2 + Math.floor(Math.random()*2);
+                this.rings = 2 + Math.floor(Math.random() * 2);
             }
-            update(dt){ this.age += dt; }
-            draw(ctx){
+            update(dt) { this.age += dt; }
+            draw(ctx) {
                 const t = this.age / this.life;
-                if(t>1) return;
+                if (t > 1) return;
                 const baseRadius = this.speed * this.age;
                 const fade = Math.pow(1 - t, 2);
-                const p = project({x:this.x,y:this.y,z:0});
+                const p = project({ x: this.x, y: this.y, z: 0 });
 
                 ctx.save();
                 // isometric foreshortening: vertical radius shorter
                 const ry = 0.5;
-                for(let i=0;i<this.rings;i++){
+                for (let i = 0; i < this.rings; i++) {
                     const ringOffset = i * 18;
                     const radius = baseRadius - ringOffset;
-                    if(radius <= 0) continue;
-                    const alpha = Math.max(0, 0.9 * fade * (1 - (radius/this.maxR)));
+                    if (radius <= 0) continue;
+                    const alpha = Math.max(0, 0.9 * fade * (1 - (radius / this.maxR)));
                     ctx.strokeStyle = `rgba(220,245,255,${alpha.toFixed(3)})`;
-                    ctx.lineWidth = 2 * (0.6 - 0.4*i/this.rings) * (1 - t*0.6);
+                    ctx.lineWidth = 2 * (0.6 - 0.4 * i / this.rings) * (1 - t * 0.6);
                     ctx.beginPath();
-                    ctx.ellipse(p.x, p.y, radius, radius*ry, 0, 0, Math.PI*2);
+                    ctx.ellipse(p.x, p.y, radius, radius * ry, 0, 0, Math.PI * 2);
                     ctx.stroke();
                 }
                 ctx.restore();
             }
-            get dead(){ return this.age > this.life; }
+            get dead() { return this.age > this.life; }
         }
 
         // small splash particles
         class Splash {
-            constructor(x,y){
-                this.x = x; this.y = y; this.v = 120 + Math.random()*120; this.dir = (Math.random()*Math.PI*2);
-                this.age = 0; this.life = 0.6 + Math.random()*0.6; this.z = 0; this.vz = 120 + Math.random()*160;
+            constructor(x, y) {
+                this.x = x; this.y = y; this.v = 120 + Math.random() * 120; this.dir = (Math.random() * Math.PI * 2);
+                this.age = 0; this.life = 0.6 + Math.random() * 0.6; this.z = 0; this.vz = 120 + Math.random() * 160;
             }
-            update(dt){
+            update(dt) {
                 this.age += dt;
                 this.x += Math.cos(this.dir) * this.v * dt;
                 this.y += Math.sin(this.dir) * this.v * dt;
                 this.z += this.vz * dt - 350 * dt * this.age; // simple gravity-ish
             }
-            draw(ctx){
-                const t = this.age/this.life; if(t>1) return;
-                const p = project({x:this.x,y:this.y,z: this.z});
-                ctx.fillStyle = `rgba(200,230,255,${Math.max(0,1-t).toFixed(3)})`;
-                ctx.beginPath(); ctx.ellipse(p.x,p.y,1.2,2.2,0,0,Math.PI*2); ctx.fill();
+            draw(ctx) {
+                const t = this.age / this.life; if (t > 1) return;
+                const p = project({ x: this.x, y: this.y, z: this.z });
+                ctx.fillStyle = `rgba(200,230,255,${Math.max(0, 1 - t).toFixed(3)})`;
+                ctx.beginPath(); ctx.ellipse(p.x, p.y, 1.2, 2.2, 0, 0, Math.PI * 2); ctx.fill();
             }
-            get dead(){ return this.age > this.life; }
+            get dead() { return this.age > this.life; }
         }
 
         const drops = [];
         const ripples = [];
         const splashes = [];
 
-        function spawnDrop(){ drops.push(new Drop()); }
-        function spawnRipple(x,y){ ripples.push(new Ripple(x,y)); }
-        function spawnSplash(x,y){ for(let i=0;i<4+Math.floor(Math.random()*6);i++) splashes.push(new Splash(x,y)); }
+        function spawnDrop() { drops.push(new Drop()); }
+        function spawnRipple(x, y) { ripples.push(new Ripple(x, y)); }
+        function spawnSplash(x, y) {
+            const count = Math.max(0, Math.round((4 + Math.floor(Math.random() * 6)) * (config.splashCount / 6)));
+            for (let i = 0; i < count; i++) splashes.push(new Splash(x, y));
+        }
 
         // Rain controller
-        let rainOn = true;
-        let dropsPerSec = 120; // default
-        overlayRate.textContent = dropsPerSec;
-
+        let rainOn = config.autoRain;
         let dropAccumulator = 0;
 
         // Main loop
         let last = performance.now();
-        function step(now){
-            const dt = Math.min(0.04, (now - last)/1000);
+        function step(now) {
+            const dt = Math.min(0.04, (now - last) / 1000);
             last = now;
 
             // spawn
-            if(rainOn){
-                dropAccumulator += dropsPerSec * dt;
-                while(dropAccumulator >= 1){ spawnDrop(); dropAccumulator -= 1; }
+            if (rainOn) {
+                dropAccumulator += config.dropsPerSec * dt;
+                while (dropAccumulator >= 1) { spawnDrop(); dropAccumulator -= 1; }
             }
 
             // update
-            for(let i=drops.length-1;i>=0;i--){ drops[i].update(dt); if(!drops[i].alive) drops.splice(i,1); }
-            for(let i=ripples.length-1;i>=0;i--){ ripples[i].update(dt); if(ripples[i].dead) ripples.splice(i,1); }
-            for(let i=splashes.length-1;i>=0;i--){ splashes[i].update(dt); if(splashes[i].dead) splashes.splice(i,1); }
+            for (let i = drops.length - 1; i >= 0; i--) { drops[i].update(dt); if (!drops[i].alive) drops.splice(i, 1); }
+            for (let i = ripples.length - 1; i >= 0; i--) { ripples[i].update(dt); if (ripples[i].dead) ripples.splice(i, 1); }
+            for (let i = splashes.length - 1; i >= 0; i--) { splashes[i].update(dt); if (splashes[i].dead) splashes.splice(i, 1); }
 
             draw();
             requestAnimationFrame(step);
         }
 
-        function draw(){
+        function draw() {
             // background
             const w = canvas.clientWidth, h = canvas.clientHeight;
             // sky gradient
-            const g = ctx.createLinearGradient(0,0,0,h*0.8);
-            g.addColorStop(0,'#041022'); g.addColorStop(1,'#072035');
-            ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+            const g = ctx.createLinearGradient(0, 0, 0, h * 0.8);
+            g.addColorStop(0, '#041022'); g.addColorStop(1, '#072035');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 
             // subtle horizon light
-            const hx = ctx.createLinearGradient(0,h*0.35,0,h);
-            hx.addColorStop(0,'rgba(120,170,200,0.06)'); hx.addColorStop(1,'rgba(10,20,30,0.02)');
-            ctx.fillStyle = hx; ctx.fillRect(0,0,w,h);
+            const hx = ctx.createLinearGradient(0, h * 0.35, 0, h);
+            hx.addColorStop(0, 'rgba(120,170,200,0.06)'); hx.addColorStop(1, 'rgba(10,20,30,0.02)');
+            ctx.fillStyle = hx; ctx.fillRect(0, 0, w, h);
 
             // Water plane base (isometric diamond)
             const corners = [
-                project({x:-PLANE_SIZE/2,y:-PLANE_SIZE/2,z:0}),
-                project({x: PLANE_SIZE/2,y:-PLANE_SIZE/2,z:0}),
-                project({x: PLANE_SIZE/2,y: PLANE_SIZE/2,z:0}),
-                project({x:-PLANE_SIZE/2,y: PLANE_SIZE/2,z:0})
+                project({ x: -PLANE_SIZE / 2, y: -PLANE_SIZE / 2, z: 0 }),
+                project({ x: PLANE_SIZE / 2, y: -PLANE_SIZE / 2, z: 0 }),
+                project({ x: PLANE_SIZE / 2, y: PLANE_SIZE / 2, z: 0 }),
+                project({ x: -PLANE_SIZE / 2, y: PLANE_SIZE / 2, z: 0 })
             ];
             // base gradient
-            const poly = new Path2D(); poly.moveTo(corners[0].x,corners[0].y);
-            for(let i=1;i<corners.length;i++) poly.lineTo(corners[i].x,corners[i].y);
+            const poly = new Path2D(); poly.moveTo(corners[0].x, corners[0].y);
+            for (let i = 1; i < corners.length; i++) poly.lineTo(corners[i].x, corners[i].y);
             poly.closePath();
-            const mg = ctx.createLinearGradient(0,corners[0].y,0,corners[2].y);
-            mg.addColorStop(0,'#0b2a3b'); mg.addColorStop(1,'#052033');
+            const mg = ctx.createLinearGradient(0, corners[0].y, 0, corners[2].y);
+            mg.addColorStop(0, '#0b2a3b'); mg.addColorStop(1, '#052033');
             ctx.fillStyle = mg; ctx.fill(poly);
 
-            // thin grid for perspective hints
-            ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 1;
-            const GRID_STEP = 80;
-            for(let gx=-PLANE_SIZE/2; gx<=PLANE_SIZE/2; gx+=GRID_STEP){
-                const p1 = project({x:gx,y:-PLANE_SIZE/2,z:0});
-                const p2 = project({x:gx,y: PLANE_SIZE/2,z:0});
-                ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
-            }
-            for(let gy=-PLANE_SIZE/2; gy<=PLANE_SIZE/2; gy+=GRID_STEP){
-                const p1 = project({x:-PLANE_SIZE/2,y:gy,z:0});
-                const p2 = project({x: PLANE_SIZE/2,y:gy,z:0});
-                ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+            // thin grid for perspective hints (optional)
+            if (config.showGrid) {
+                ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 1;
+                const GRID_STEP = 80;
+                for (let gx = -PLANE_SIZE / 2; gx <= PLANE_SIZE / 2; gx += GRID_STEP) {
+                    const p1 = project({ x: gx, y: -PLANE_SIZE / 2, z: 0 });
+                    const p2 = project({ x: gx, y: PLANE_SIZE / 2, z: 0 });
+                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                }
+                for (let gy = -PLANE_SIZE / 2; gy <= PLANE_SIZE / 2; gy += GRID_STEP) {
+                    const p1 = project({ x: -PLANE_SIZE / 2, y: gy, z: 0 });
+                    const p2 = project({ x: PLANE_SIZE / 2, y: gy, z: 0 });
+                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                }
             }
 
             // draw ripples under (below splashes so they appear on surface)
             ctx.save(); ctx.globalCompositeOperation = 'lighter';
-            for(const r of ripples) r.draw(ctx);
+            for (const r of ripples) r.draw(ctx);
             ctx.restore();
 
             // draw splashes and drops on top
-            for(const s of splashes) s.draw(ctx);
-            for(const d of drops) d.draw(ctx);
+            for (const s of splashes) s.draw(ctx);
+            for (const d of drops) d.draw(ctx);
 
             overlayCount.textContent = ripples.length;
         }
 
         // interactions
-        window.addEventListener('click', (e)=>{
+        window.addEventListener('click', (e) => {
             // spawn a cluster of drops around click (map screen->world approx inverse)
             const rect = canvas.getBoundingClientRect();
-            const sx = e.clientX - rect.left - canvas.clientWidth/2;
-            const sy = e.clientY - rect.top - canvas.clientHeight*0.45;
+            const sx = e.clientX - rect.left - canvas.clientWidth / 2;
+            const sy = e.clientY - rect.top - canvas.clientHeight * 0.45;
             // invert isometric roughly for ground point
-            const wx = (sx/COS + sy/SIN)/2;
-            const wy = (sy/SIN - sx/COS)/2;
-            for(let i=0;i<60;i++){ const d = new Drop(); d.x = wx + (Math.random()-0.5)*120; d.y = wy + (Math.random()-0.5)*120; d.z = 200 + Math.random()*180; drops.push(d); }
+            const wx = (sx / COS + sy / SIN) / 2;
+            const wy = (sy / SIN - sx / COS) / 2;
+            let base = Math.max(1, Math.round(config.clickSpawnCount || 60));
+            if (e.shiftKey) base = Math.round(base * 3);
+            if (e.ctrlKey) base = Math.max(1, Math.round(base * 0.5));
+            for (let i = 0; i < base; i++) { const d = new Drop(); d.x = wx + (Math.random() - 0.5) * 120; d.y = wy + (Math.random() - 0.5) * 120; d.z = 200 + Math.random() * 180; drops.push(d); }
         });
 
-        window.addEventListener('keydown', (e)=>{
-            if(e.code === 'Space'){ rainOn = !rainOn; }
+        // spawn single drop at a specific screen position (map to world)
+        function spawnDropAt(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const sx = clientX - rect.left - canvas.clientWidth / 2;
+            const sy = clientY - rect.top - canvas.clientHeight * 0.45;
+            const wx = (sx / COS + sy / SIN) / 2;
+            const wy = (sy / SIN - sx / COS) / 2;
+            const d = new Drop(); d.x = wx + (Math.random() - 0.5) * 18; d.y = wy + (Math.random() - 0.5) * 18; d.z = 120 + Math.random() * 120; drops.push(d);
+        }
+
+        // hover spawn (throttled)
+        let lastHoverSpawn = 0;
+        const HOVER_THROTTLE = 30; // ms between spawns
+        canvas.addEventListener('mousemove', (e) => {
+            if (!config.hoverSpawn) return;
+            const now = performance.now();
+            if (now - lastHoverSpawn < HOVER_THROTTLE) return;
+            lastHoverSpawn = now;
+            spawnDropAt(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') { rainOn = !rainOn; }
         });
 
         // small UI controls: mouse wheel changes rate
-        window.addEventListener('wheel', (ev)=>{
+        window.addEventListener('wheel', (ev) => {
             const delta = Math.sign(ev.deltaY);
-            dropsPerSec = Math.max(0, dropsPerSec - delta*12);
-            overlayRate.textContent = dropsPerSec;
-        }, {passive:true});
+            config.dropsPerSec = Math.max(0, config.dropsPerSec - delta * 12);
+            dropsRange.value = config.dropsPerSec; overlayRate.textContent = config.dropsPerSec;
+        }, { passive: true });
 
         // initial seeding
-        for(let i=0;i<50;i++) spawnDrop();
+        for (let i = 0; i < 50; i++) spawnDrop();
 
         requestAnimationFrame(step);
-        </script>
-    </body>
-</html>
+    </script>
+</body>
+
 </html>
