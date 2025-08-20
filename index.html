@@ -131,7 +131,7 @@
     <canvas id="c"></canvas>
     <div id="overlay">
         <!-- <div>Click/tap to spawn heavy rain. Press Space to toggle rain.</div> -->
-        <div style="margin-top:6px">Drops/sec: <span id="rate">120</span> · Ripples: <span id="count">0</span></div>
+    <div style="margin-top:6px">Drops/sec: <span id="rate">120</span> · Ripples: <span id="count">0</span> · FPS: <span id="fps">0</span></div>
         <hr style="opacity:0.12;margin:8px 0" />
         <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -217,6 +217,7 @@
         const ctx = canvas.getContext('2d', { alpha: false });
         const overlayRate = document.getElementById('rate');
         const overlayCount = document.getElementById('count');
+    const overlayFps = document.getElementById('fps');
 
         let DPR = Math.max(1, window.devicePixelRatio || 1);
         function resize() {
@@ -258,6 +259,9 @@
             showGrid: true,
             hoverSpawn: false
         };
+
+    // snapshot initial config so Reset returns to these starting values
+    const initialConfig = JSON.parse(JSON.stringify(config));
 
         // wire UI elements
         const dropsRange = document.getElementById('dropsRange');
@@ -327,9 +331,10 @@
             });
         });
 
-        resetBtn.addEventListener('click', () => { // reset to defaults
-            config.dropsPerSec = 120; config.dropSize = 1; config.rippleSize = 1; config.rippleLife = 1; config.splashCount = 6; config.showGrid = true; config.autoRain = true; config.hoverSpawn = false;
-            rainOn = config.autoRain; syncFromConfig();
+        resetBtn.addEventListener('click', () => { // reset to the initial starting values
+            Object.assign(config, JSON.parse(JSON.stringify(initialConfig)));
+            rainOn = !!config.autoRain;
+            syncFromConfig();
         });
         clearBtn.addEventListener('click', () => { drops.length = 0; ripples.length = 0; splashes.length = 0; });
 
@@ -443,10 +448,26 @@
         let dropAccumulator = 0;
 
         // Main loop
+        // FPS tracking
         let last = performance.now();
+        let fpsLastUpdate = last;
+        let fpsSmoothed = 60;
+        let framesThisPeriod = 0;
         function step(now) {
             const dt = Math.min(0.04, (now - last) / 1000);
+            const rawDt = (now - last) / 1000;
             last = now;
+            framesThisPeriod++;
+            // update smoothed FPS every 200ms
+            const sinceFps = now - fpsLastUpdate;
+            if (sinceFps >= 200) {
+                const rawFps = framesThisPeriod / (sinceFps / 1000);
+                const alpha = 0.15; // smoothing
+                fpsSmoothed = fpsSmoothed * (1 - alpha) + rawFps * alpha;
+                overlayFps.textContent = Math.round(fpsSmoothed);
+                fpsLastUpdate = now;
+                framesThisPeriod = 0;
+            }
 
             // spawn
             if (rainOn) {
