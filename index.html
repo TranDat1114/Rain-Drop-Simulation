@@ -131,7 +131,8 @@
     <canvas id="c"></canvas>
     <div id="overlay">
         <!-- <div>Click/tap to spawn heavy rain. Press Space to toggle rain.</div> -->
-    <div style="margin-top:6px">Drops/sec: <span id="rate">120</span> · Ripples: <span id="count">0</span> · FPS: <span id="fps">0</span></div>
+        <div style="margin-top:6px">Drops/sec: <span id="rate">120</span> · Ripples: <span id="count">0</span> · FPS:
+            <span id="fps">0</span></div>
         <hr style="opacity:0.12;margin:8px 0" />
         <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -139,15 +140,14 @@
                 <button id="toggleOverlay" title="Collapse" style="font-size:12px;padding:4px 6px">-</button>
             </div>
             <div id="controls" style="display:flex;flex-direction:column;gap:8px">
-                <label style="display:flex;align-items:center;gap:8px">Auto rain: <input id="autoRain" type="checkbox"
-                        style="margin-left:auto" /></label>
+
 
                 <div style="display:flex;align-items:center;gap:6px">
                     <label style="flex:1">Drops / sec:</label>
                     <button class="step-btn" data-target="drops" data-delta="-1">-</button>
-                    <input id="dropsRange" type="range" min="0" max="300" step="1" value="15" style="flex:2" />
+                    <input id="dropsRange" type="range" min="1" max="300" step="1" value="15" style="flex:2" />
                     <button class="step-btn" data-target="drops" data-delta="1">+</button>
-                    <input id="dropsNumber" type="text" min="0" max="300" value="15" style="width:64px" />
+                    <input id="dropsNumber" type="text" min="1" max="300" value="15" style="width:64px" />
                 </div>
 
                 <div style="display:flex;align-items:center;gap:6px">
@@ -155,8 +155,7 @@
                     <button class="step-btn" data-target="dropSize" data-delta="-0.1">-</button>
                     <input id="dropSize" type="range" min="0.3" max="3" step="0.1" value="1" style="flex:2" />
                     <button class="step-btn" data-target="dropSize" data-delta="0.1">+</button>
-                    <input id="dropSizeNumber" type="text" min="0.1" max="5" step="0.1" value="1"
-                        style="width:64px" />
+                    <input id="dropSizeNumber" type="text" min="0.1" max="5" step="0.1" value="1" style="width:64px" />
                 </div>
 
                 <div style="display:flex;align-items:center;gap:6px">
@@ -182,8 +181,7 @@
                     <button class="step-btn" data-target="splashCount" data-delta="-1">-</button>
                     <input id="splashCount" type="range" min="0" max="50" step="1" value="10" style="flex:2" />
                     <button class="step-btn" data-target="splashCount" data-delta="1">+</button>
-                    <input id="splashCountNumber" type="text" min="0" max="50" step="1" value="10"
-                        style="width:64px" />
+                    <input id="splashCountNumber" type="text" min="0" max="50" step="1" value="10" style="width:64px" />
                 </div>
 
                 <div style="display:flex;align-items:center;gap:6px">
@@ -191,14 +189,12 @@
                     <button class="step-btn" data-target="clickSpawnCount" data-delta="-1">-</button>
                     <input id="clickSpawnRange" type="range" min="1" max="100" step="1" value="5" style="flex:2" />
                     <button class="step-btn" data-target="clickSpawnCount" data-delta="1">+</button>
-                    <input id="clickSpawnNumber" type="text" min="1" max="100" step="1" value="5"
-                        style="width:64px" />
+                    <input id="clickSpawnNumber" type="text" min="1" max="100" step="1" value="5" style="width:64px" />
                 </div>
 
-                <label style="display:flex;align-items:center;gap:8px"><input id="hoverSpawn" type="checkbox" /> Spawn
-                    on hover</label>
-                <label style="display:flex;align-items:center;gap:8px"><input id="gridToggle" type="checkbox" checked />
-                    Show grid</label>
+                <label style="display:flex;align-items:center;gap:8px"><input id="autoRain" type="checkbox" /> Auto rain</label>
+                <label style="display:flex;align-items:center;gap:8px"><input id="hoverSpawn" type="checkbox" /> Spawn on hover</label>
+                <label style="display:flex;align-items:center;gap:8px"><input id="gridToggle" type="checkbox" checked /> Show grid</label>
 
                 <div style="display:flex;gap:8px;justify-content:space-between">
                     <button id="resetBtn">Reset</button>
@@ -217,7 +213,7 @@
         const ctx = canvas.getContext('2d', { alpha: false });
         const overlayRate = document.getElementById('rate');
         const overlayCount = document.getElementById('count');
-    const overlayFps = document.getElementById('fps');
+        const overlayFps = document.getElementById('fps');
 
         let DPR = Math.max(1, window.devicePixelRatio || 1);
         function resize() {
@@ -260,8 +256,8 @@
             hoverSpawn: false
         };
 
-    // snapshot initial config so Reset returns to these starting values
-    const initialConfig = JSON.parse(JSON.stringify(config));
+        // snapshot initial config so Reset returns to these starting values
+        const initialConfig = JSON.parse(JSON.stringify(config));
 
         // wire UI elements
         const dropsRange = document.getElementById('dropsRange');
@@ -312,7 +308,7 @@
         clickSpawnRange.addEventListener('input', () => { config.clickSpawnCount = Math.max(1, Number(clickSpawnRange.value)); clickSpawnNumber.value = config.clickSpawnCount; });
         clickSpawnNumber.addEventListener('change', () => { config.clickSpawnCount = Math.max(1, Number(clickSpawnNumber.value)); clickSpawnRange.value = config.clickSpawnCount; });
 
-        autoRainEl.addEventListener('change', () => { config.autoRain = autoRainEl.checked; rainOn = config.autoRain; });
+        autoRainEl.addEventListener('change', () => { config.autoRain = autoRainEl.checked; });
         gridToggleEl.addEventListener('change', () => { config.showGrid = gridToggleEl.checked; });
         hoverSpawnEl.addEventListener('change', () => { config.hoverSpawn = hoverSpawnEl.checked; });
 
@@ -333,7 +329,6 @@
 
         resetBtn.addEventListener('click', () => { // reset to the initial starting values
             Object.assign(config, JSON.parse(JSON.stringify(initialConfig)));
-            rainOn = !!config.autoRain;
             syncFromConfig();
         });
         clearBtn.addEventListener('click', () => { drops.length = 0; ripples.length = 0; splashes.length = 0; });
@@ -444,7 +439,7 @@
         }
 
         // Rain controller
-        let rainOn = config.autoRain;
+        // Use config.autoRain as the single source of truth for automatic rain.
         let dropAccumulator = 0;
 
         // Main loop
@@ -469,8 +464,8 @@
                 framesThisPeriod = 0;
             }
 
-            // spawn
-            if (rainOn) {
+            // spawn (use config.autoRain as source of truth)
+            if (config.autoRain) {
                 dropAccumulator += config.dropsPerSec * dt;
                 while (dropAccumulator >= 1) { spawnDrop(); dropAccumulator -= 1; }
             }
@@ -588,7 +583,16 @@
         });
 
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') { rainOn = !rainOn; }
+            // Space toggles automatic rain
+            if (e.code === 'Space') {
+                config.autoRain = !config.autoRain;
+                syncFromConfig();
+            }
+            // 'M' toggles the overlay/menu visibility
+            if (e.key && e.key.toLowerCase() === 'm') {
+                const collapsed = controlsWrap.classList.toggle('collapsed');
+                toggleOverlay.textContent = collapsed ? '+' : '-';
+            }
         });
 
         // small UI controls: mouse wheel changes rate
