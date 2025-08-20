@@ -534,14 +534,21 @@
             for (let i = 0; i < base; i++) { const d = new Drop(); d.x = wx + (Math.random() - 0.5) * 120; d.y = wy + (Math.random() - 0.5) * 120; d.z = 200 + Math.random() * 180; drops.push(d); }
         });
 
-        // spawn single drop at a specific screen position (map to world)
-        function spawnDropAt(clientX, clientY) {
+        // spawn drop(s) at a specific screen position (map to world)
+        // count: number of drops to spawn (default 1)
+        function spawnDropAt(clientX, clientY, count = 1) {
             const rect = canvas.getBoundingClientRect();
             const sx = clientX - rect.left - canvas.clientWidth / 2;
             const sy = clientY - rect.top - canvas.clientHeight * 0.45;
             const wx = (sx / COS + sy / SIN) / 2;
             const wy = (sy / SIN - sx / COS) / 2;
-            const d = new Drop(); d.x = wx + (Math.random() - 0.5) * 18; d.y = wy + (Math.random() - 0.5) * 18; d.z = 120 + Math.random() * 120; drops.push(d);
+            for (let i = 0; i < count; i++) {
+                const d = new Drop();
+                d.x = wx + (Math.random() - 0.5) * 18;
+                d.y = wy + (Math.random() - 0.5) * 18;
+                d.z = 120 + Math.random() * 120;
+                drops.push(d);
+            }
         }
 
         // hover spawn (throttled)
@@ -552,7 +559,11 @@
             const now = performance.now();
             if (now - lastHoverSpawn < HOVER_THROTTLE) return;
             lastHoverSpawn = now;
-            spawnDropAt(e.clientX, e.clientY);
+            // spawn a small burst proportional to clickSpawnCount so hover behavior is synced
+            const baseClick = Math.max(1, Math.round(config.clickSpawnCount || 5));
+            // use a small fraction for hover to avoid overwhelming: ~6% of click spawn (min 1)
+            const hoverCount = Math.max(1, Math.round(baseClick * 0.06));
+            spawnDropAt(e.clientX, e.clientY, hoverCount);
         });
 
         window.addEventListener('keydown', (e) => {
